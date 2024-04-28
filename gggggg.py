@@ -101,7 +101,10 @@ async def first_response(update, context):
     # Сохраняем ответ в словаре.
     context.user_data['locality'] = context.user_data['locality'] + [update.message.text]
     s = context.user_data['locality']
-    cords2 = search(context.user_data['locality'][2])
+    try:
+        cords2 = await search(context.user_data['locality'][2])
+    except Exception:
+        cords2 = '123'
     await update.message.reply_text(f'Вы угадали '
                                     f'город - {s[0]}' if cords2 == s[1] else f'Вы не угадал'
                                                                              f'и город {s[0]}, выбрав - {s[2]}')
