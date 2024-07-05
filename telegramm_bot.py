@@ -1,23 +1,23 @@
-# Импортируем необходимые классы.
-import logging
 from telegram.ext import Application
 from telegram.ext import CommandHandler
-from telegram import ReplyKeyboardMarkup
-from telegram import ReplyKeyboardRemove
 from telegram.ext import ConversationHandler
 from telegram.ext import MessageHandler
 from telegram.ext import filters
+from telegram.ext import CallbackQueryHandler
+from telegram import InlineKeyboardMarkup
+from telegram import InlineKeyboardButton
+from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardRemove
 import requests
 import sys
 import random
+import logging
 
 with open('goroda.txt', encoding='utf-8') as txt:
     TOWNS = txt.readlines()
 
 # Запускаем логгирование
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG
-)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +105,8 @@ async def first_response(update, context):
         cords2 = await search(context.user_data['locality'][2])
     except Exception:
         cords2 = '123'
-    await update.message.reply_text(f'Вы угадали '
-                                    f'город - {s[0]}' if cords2 == s[1] else f'Вы не угадал'
-                                                                             f'и город {s[0]}, выбрав - {s[2]}')
+    await update.message.reply_text(f'Вы угадали город - {s[0]}\nоцените игру от 1 до 5' if cords2 == s[
+        1] else f'Вы не угадали город {s[0]}, выбрав - {s[2]}\nоцените игру от 1 до 5')
     return 2
 
 
@@ -121,6 +120,35 @@ async def second_response(update, context):
 async def stop(update, context):
     await update.message.reply_text("Всего доброго!")
     return ConversationHandler.END
+
+
+async def check_command(update, context):
+    if update.message.text == 'play':
+        keyboard = [
+            [
+                InlineKeyboardButton("1", callback_data=str('1')),
+                InlineKeyboardButton("2", callback_data=str('2')),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        # Send message with text and appended InlineKeyboard
+        await update.message.reply_text("Start handler, Choose a route", reply_markup=reply_markup)
+
+
+async def onegg(update, context):
+    """Show new choice of buttons"""
+    query = update.callback_query
+    await query.answer()
+    keyboard = [
+        [
+            InlineKeyboardButton("3", callback_data=str(3)),
+            InlineKeyboardButton("4", callback_data=str(4)),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(
+        text="First CallbackQueryHandler, Choose a route", reply_markup=reply_markup
+    )
 
 
 def main():
@@ -150,6 +178,10 @@ def main():
     )
 
     application.add_handler(conv_handler)
+
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_command))
+
+    application.add_handler(CallbackQueryHandler(onegg, pattern="^" + str(1) + "$"))
 
     application.run_polling()
 
