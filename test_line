@@ -7,13 +7,12 @@ from telegram import InlineKeyboardMarkup
 from telegram import InlineKeyboardButton
 from telegram import ReplyKeyboardMarkup
 from telegram import ReplyKeyboardRemove
-import requests
-import sys
 import random
 import logging
 
-with open('goroda.txt', encoding='utf-8') as txt:
-    TOWNS = txt.readlines()
+TOWNS = ['Moscow', 'Saint Peterburg']
+PHOTOS = {'Moscow': ['Moscow_1.jpg'], 'Saint Peterburg': ['Saint_peterburg_1.jpg']}
+NAME_TOWNS = {'Moscow': "Москва", 'Saint Peterburg': 'Санкт Петербург'}
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
@@ -48,49 +47,21 @@ async def stat(update, context):
     return context
 
 
-async def search(towngg):
-    geocoder_request = (f"http://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0"
-                        f"493-4b70-98ba-98533de7710b&geocode={towngg}&format=json")
-    response = requests.get(geocoder_request)
-    if not response:
-        print("Ошибка выполнения запроса:")
-        return [1000 - 7]
-    json_response = response.json()
-    toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-    toponym_coodrinates = toponym["Point"]["pos"]
-    return ','.join(toponym_coodrinates.split(' '))
-
-
 async def play(update, context):
-    town = random.choice(TOWNS)[:-1]
-    cords = await search(town)
-    map_request = f"http://static-maps.yandex.ru/1.x/?ll={cords}&spn=0.05,0.05&l=sat"
-    response = requests.get(map_request)
-    if not response:
-        print("Ошибка выполнения запроса:")
-        sys.exit(1)
-    map_file = "map.png"
-    with open(map_file, "wb") as file:
-        file.write(response.content)
-    await update.message.reply_text(
-        "Привет. Угадайте город по фото:")
-    await update.message.reply_photo('map.png')
-    await update.message.reply_text(
-        "Введите название города:")
-    context.user_data['locality'] = [town, cords]
+    town = random.choice(TOWNS)
+    photo = random.choice(PHOTOS[town])
+    await update.message.reply_text("Здравствуйте. Угадайте город по фото:")
+    await update.message.reply_photo(rf'Russia cities\{town}\{photo}')
+    await update.message.reply_text("Введите название города:")
+    context.user_data['locality'] = [NAME_TOWNS[town]]
     context.user_data['isgame'] = 'wait town'
 
 
 async def first_response(update, context):
     context.user_data['locality'] = context.user_data['locality'] + [update.message.text]
     s = context.user_data['locality']
-    try:
-        cords2 = await search(context.user_data['locality'][2])
-    except Exception as error:
-        logging.exception(error)
-        cords2 = '123'
-    await update.message.reply_text(f'Вы угадали город - {s[0]}\nоцените игру от 1 до 5' if cords2 == s[
-        1] else f'Вы не угадали город {s[0]}, выбрав - {s[2]}\nоцените игру от 1 до 5')
+    await update.message.reply_text(f'Вы угадали город - {s[0]}\nоцените игру от 1 до 5' if s[0] == s[
+        1] else f'Вы не угадали город {s[0]}, выбрав - {s[1]}\nоцените игру от 1 до 5')
     context.user_data['isgame'] = 'wait number'
 
 
