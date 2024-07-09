@@ -19,7 +19,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-reply_keyboard = [['🎮play', '📊statistics'], ['📖faq', '🚪exit']]
+reply_keyboard = [['🎮 play 🎮', '⚙️ settings ⚙️'], ['📊 statistics 📊', '📖 faq 📖']]
 markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True, one_time_keyboard=False)
 
 
@@ -31,20 +31,21 @@ async def start(update, context):
     return context
 
 
-async def close_keyboard(update):
+async def close_keyboard(update, context):
     await update.message.reply_text(
         "Клавиатура закрыта. Испоьзуйте /start для её запуска!",
-        reply_markup=ReplyKeyboardRemove()
-    )
+        reply_markup=ReplyKeyboardRemove())
+    return context
 
 
-async def helpp(update):
-    await update.message.reply_text(
-        "Я бот, команда в разработке.")
+async def helpp(update, context):
+    await update.message.reply_text("Я бот, команда в разработке.")
+    return context
 
 
-async def stat(update):
+async def stat(update, context):
     await update.message.reply_text("В разработке.")
+    return context
 
 
 async def search(towngg):
@@ -105,43 +106,66 @@ async def check_command(update, context):
             await first_response(update, context)
         elif context.user_data['isgame'] == 'wait number':
             await second_response(update, context)
-    elif update.message.text == '🎮play':
+    elif update.message.text == '🎮 play 🎮':
         await play(update, context)
-    elif update.message.text == '📊statistics':
-        await stat(update)
-    elif update.message.text == '📖faq':
-        await helpp(update)
-    elif update.message.text == '🚪exit':
-        await close_keyboard(update)
-    elif update.message.text == 'ke':
-        await first_key_buttons(update)
+    elif update.message.text == '📊 statistics 📊':
+        await stat(update, context)
+    elif update.message.text == '📖 faq 📖':
+        await helpp(update, context)
+    elif update.message.text == '🚪 exit 🚪':
+        await close_keyboard(update, context)
+    elif update.message.text == '⚙️ settings ⚙️':
+        await first_key_buttons(update, context)
 
 
-async def first_key_buttons(update):
-    keyboard = [
-        [
-            InlineKeyboardButton("1", callback_data=str('1')),
-            InlineKeyboardButton("2", callback_data=str('2')),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Start handler, Choose a route", reply_markup=reply_markup)
-
-
-async def second_key_buttons(update, context):
-    """Show new choice of buttons"""
+async def button(update, context):
     query = update.callback_query
+
     await query.answer()
+
+    answer = str(query.data)
+
+    if answer == "стата":
+        await query.edit_message_text(text="vot tebe stata")
+    elif answer == "далее":
+        await second_key_buttons(update, context, 2)
+    elif answer == 'назад':
+        await second_key_buttons(update, context, 1)
+    return context
+
+
+async def first_key_buttons(update, context):
     keyboard = [
         [
-            InlineKeyboardButton("3", callback_data=str(3)),
-            InlineKeyboardButton("4", callback_data=str(4)),
+            InlineKeyboardButton("стата", callback_data='стата'),
+            InlineKeyboardButton("далее", callback_data='далее'),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text="First CallbackQueryHandler, Choose a route", reply_markup=reply_markup
-    )
+    await update.message.reply_text("1", reply_markup=reply_markup)
+    return context
+
+
+async def second_key_buttons(update, context, count):
+    query = update.callback_query
+    if count == 1:
+        keyboard = [
+            [
+                InlineKeyboardButton("стата", callback_data='стата'),
+                InlineKeyboardButton("далее", callback_data='далее'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text="1s", reply_markup=reply_markup)
+    elif count == 2:
+        keyboard = [
+            [
+                InlineKeyboardButton("помощь", callback_data="помощь"),
+                InlineKeyboardButton("назад", callback_data='назад'),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text="2", reply_markup=reply_markup)
     return context
 
 
@@ -152,7 +176,7 @@ def main():
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_command))
 
-    application.add_handler(CallbackQueryHandler(second_key_buttons, pattern="^" + str(1) + "$"))
+    application.add_handler(CallbackQueryHandler(button))
 
     application.run_polling()
 
