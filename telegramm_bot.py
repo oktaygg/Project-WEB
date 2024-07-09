@@ -1,9 +1,8 @@
 from telegram.ext import Application
-from telegram.ext import CommandHandler
-from telegram.ext import ConversationHandler
 from telegram.ext import MessageHandler
 from telegram.ext import filters
 from telegram.ext import CallbackQueryHandler
+from telegram.ext import CommandHandler
 from telegram import InlineKeyboardMarkup
 from telegram import InlineKeyboardButton
 from telegram import ReplyKeyboardMarkup
@@ -16,14 +15,36 @@ import logging
 with open('goroda.txt', encoding='utf-8') as txt:
     TOWNS = txt.readlines()
 
-# Запускаем логгирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
-reply_keyboard = [['/play', '/stat'],
-                  ['/help', '/close']]
-markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
+reply_keyboard = [['🎮play', '📊statistics'], ['📖faq', '🚪exit']]
+markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True, one_time_keyboard=False)
+
+
+async def start(update, context):
+    await update.message.reply_text(
+        "Я бот-игра! Используйте команды для старта игры!",
+        reply_markup=markup
+    )
+    return context
+
+
+async def close_keyboard(update):
+    await update.message.reply_text(
+        "Клавиатура закрыта. Испоьзуйте /start для её запуска!",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+
+async def helpp(update):
+    await update.message.reply_text(
+        "Я бот, команда в разработке.")
+
+
+async def stat(update):
+    await update.message.reply_text("В разработке.")
 
 
 async def search(towngg):
@@ -34,34 +55,9 @@ async def search(towngg):
         print("Ошибка выполнения запроса:")
         return [1000 - 7]
     json_response = response.json()
-
     toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
     toponym_coodrinates = toponym["Point"]["pos"]
     return ','.join(toponym_coodrinates.split(' '))
-
-
-# Определяем функцию-обработчик сообщений.
-# У неё два параметра, updater, принявший сообщение и контекст - дополнительная информация о сообщении.
-
-# Напишем соответствующие функции.
-# Их сигнатура и поведение аналогичны обработчикам текст
-async def start(update, context):
-    await update.message.reply_text(
-        "Я бот-игра! Используйте команды для старта игры!",
-        reply_markup=markup
-    )
-
-
-async def close_keyboard(update, context):
-    await update.message.reply_text(
-        "Клавиатура закрыта. Испоьзуйте /start для её запуска!",
-        reply_markup=ReplyKeyboardRemove()
-    )
-
-
-async def helpp(update, context):
-    await update.message.reply_text(
-        "Я бот, команда в разработке.")
 
 
 async def play(update, context):
@@ -72,7 +68,6 @@ async def play(update, context):
     if not response:
         print("Ошибка выполнения запроса:")
         sys.exit(1)
-
     map_file = "map.png"
     with open(map_file, "wb") as file:
         file.write(response.content)
@@ -82,60 +77,58 @@ async def play(update, context):
     await update.message.reply_text(
         "Введите название города:")
     context.user_data['locality'] = [town, cords]
-
-    # Число-ключ в словаре states —
-    # втором параметре ConversationHandler'а.
-    return 1
-    # Оно указывает, что дальше на сообщения от этого пользователя
-    # должен отвечать обработчик states[1].
-    # До этого момента обработчиков текстовых сообщений
-    # для этого пользователя не существовало,
-    # поэтому текстовые сообщения игнорировались.
-
-
-async def stat(update, context):
-    await update.message.reply_text("В разработке.")
+    context.user_data['isgame'] = 'wait town'
 
 
 async def first_response(update, context):
-    # Сохраняем ответ в словаре.
     context.user_data['locality'] = context.user_data['locality'] + [update.message.text]
     s = context.user_data['locality']
     try:
         cords2 = await search(context.user_data['locality'][2])
-    except Exception:
+    except Exception as error:
+        logging.exception(error)
         cords2 = '123'
     await update.message.reply_text(f'Вы угадали город - {s[0]}\nоцените игру от 1 до 5' if cords2 == s[
         1] else f'Вы не угадали город {s[0]}, выбрав - {s[2]}\nоцените игру от 1 до 5')
-    return 2
+    context.user_data['isgame'] = 'wait number'
 
 
-# Добавили словарь user_data в параметры.
 async def second_response(update, context):
     await update.message.reply_text(f"Спасибо за участие! Статистика в разработке!")
-    context.user_data.clear()  # очищаем словарь с пользовательскими данными
-    return ConversationHandler.END
-
-
-async def stop(update, context):
-    await update.message.reply_text("Всего доброго!")
-    return ConversationHandler.END
+    del context.user_data['isgame']
+    del context.user_data['locality']
 
 
 async def check_command(update, context):
-    if update.message.text == 'play':
-        keyboard = [
-            [
-                InlineKeyboardButton("1", callback_data=str('1')),
-                InlineKeyboardButton("2", callback_data=str('2')),
-            ]
+    if 'isgame' in context.user_data:
+        if context.user_data['isgame'] == 'wait town':
+            await first_response(update, context)
+        elif context.user_data['isgame'] == 'wait number':
+            await second_response(update, context)
+    elif update.message.text == '🎮play':
+        await play(update, context)
+    elif update.message.text == '📊statistics':
+        await stat(update)
+    elif update.message.text == '📖faq':
+        await helpp(update)
+    elif update.message.text == '🚪exit':
+        await close_keyboard(update)
+    elif update.message.text == 'ke':
+        await first_key_buttons(update)
+
+
+async def first_key_buttons(update):
+    keyboard = [
+        [
+            InlineKeyboardButton("1", callback_data=str('1')),
+            InlineKeyboardButton("2", callback_data=str('2')),
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        # Send message with text and appended InlineKeyboard
-        await update.message.reply_text("Start handler, Choose a route", reply_markup=reply_markup)
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Start handler, Choose a route", reply_markup=reply_markup)
 
 
-async def onegg(update, context):
+async def second_key_buttons(update, context):
     """Show new choice of buttons"""
     query = update.callback_query
     await query.answer()
@@ -149,43 +142,20 @@ async def onegg(update, context):
     await query.edit_message_text(
         text="First CallbackQueryHandler, Choose a route", reply_markup=reply_markup
     )
+    return context
 
 
 def main():
     application = Application.builder().token('7198751024:AAF8hG5IUJq-BNMJ6BQ0FtH6kQgUDdT7C7I').build()
-    application.add_handler(CommandHandler("stat", stat))
-    application.add_handler(CommandHandler("help", helpp))
+
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("close", close_keyboard))
-
-    conv_handler = ConversationHandler(
-        # Точка входа в диалог.
-        # В данном случае — команда /start. Она задаёт первый вопрос.
-        entry_points=[CommandHandler('play', play)],
-
-        # Состояние внутри диалога.
-        # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
-        states={
-            # Функция читает ответ на первый вопрос и задаёт второй.
-            1: [MessageHandler(filters.TEXT & ~filters.COMMAND, first_response)],
-            # Функция читает ответ на второй вопрос и завершает диалог.
-            2: [MessageHandler(filters.TEXT & ~filters.COMMAND, second_response)]
-
-        },
-
-        # Точка прерывания диалога. В данном случае — команда /stop.
-        fallbacks=[CommandHandler('stop', stop)]
-    )
-
-    application.add_handler(conv_handler)
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_command))
 
-    application.add_handler(CallbackQueryHandler(onegg, pattern="^" + str(1) + "$"))
+    application.add_handler(CallbackQueryHandler(second_key_buttons, pattern="^" + str(1) + "$"))
 
     application.run_polling()
 
 
-# Запускаем функцию main() в случае запуска скрипта.
 if __name__ == '__main__':
     main()
