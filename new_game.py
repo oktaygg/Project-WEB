@@ -7,19 +7,21 @@ from telegram import InlineKeyboardMarkup
 from telegram import InlineKeyboardButton
 from telegram import ReplyKeyboardMarkup
 from telegram import ReplyKeyboardRemove
-import requests
-import sys
 import random
 import logging
 
-with open('goroda.txt', encoding='utf-8') as txt:
-    TOWNS = txt.readlines()
+TOWNS = ['Moscow', 'Saint Peterburg', 'Kazan']
+PHOTOS = {'Moscow': ['Moscow_1.jpg'], 'Saint Peterburg': ['Saint_peterburg_1.jpg'], 'Kazan': ['Kazan_1.jpg']}
+NAME_TOWNS = {'Moscow': ["Москва", 'москва'],
+              'Saint Peterburg': ['Санкт-Петербург', "спб", "Спб", "СПБ", "питер", "Питер", "санкт петербург",
+                                  "Санкт петербург", "Санкт Петербург", "санкт-петербург", "Санкт-петербург"],
+              'Kazan': ["Казань", "казань"]}
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
-reply_keyboard = [['🎮 play 🎮', '⚙️ settings ⚙️'], ['📊 statistics 📊', '📖 faq 📖']]
+reply_keyboard = [['🎮 играть 🎮', '⚙️ настройки ⚙️'], ['📊 статистика 📊', '📖 информация 📖']]
 markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True, one_time_keyboard=False)
 
 
@@ -38,7 +40,7 @@ async def close_keyboard(update, context):
     return context
 
 
-async def helpp(update, context):
+async def info(update, context):
     await update.message.reply_text("Я бот, команда в разработке.")
     return context
 
@@ -48,49 +50,21 @@ async def stat(update, context):
     return context
 
 
-async def search(towngg):
-    geocoder_request = (f"http://geocode-maps.yandex.ru/1.x/?apikey=40d1649f-0"
-                        f"493-4b70-98ba-98533de7710b&geocode={towngg}&format=json")
-    response = requests.get(geocoder_request)
-    if not response:
-        print("Ошибка выполнения запроса:")
-        return [1000 - 7]
-    json_response = response.json()
-    toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-    toponym_coodrinates = toponym["Point"]["pos"]
-    return ','.join(toponym_coodrinates.split(' '))
-
-
 async def play(update, context):
-    town = random.choice(TOWNS)[:-1]
-    cords = await search(town)
-    map_request = f"http://static-maps.yandex.ru/1.x/?ll={cords}&spn=0.05,0.05&l=sat"
-    response = requests.get(map_request)
-    if not response:
-        print("Ошибка выполнения запроса:")
-        sys.exit(1)
-    map_file = "map.png"
-    with open(map_file, "wb") as file:
-        file.write(response.content)
-    await update.message.reply_text(
-        "Привет. Угадайте город по фото:")
-    await update.message.reply_photo('map.png')
-    await update.message.reply_text(
-        "Введите название города:")
-    context.user_data['locality'] = [town, cords]
+    town = random.choice(TOWNS)
+    photo = random.choice(PHOTOS[town])
+    await update.message.reply_text("Здравствуйте. Угадайте город по фото:")
+    await update.message.reply_photo(rf'Russia cities\{town}\{photo}')
+    await update.message.reply_text("Введите название города:")
+    context.user_data['locality'] = [NAME_TOWNS[town]]
     context.user_data['isgame'] = 'wait town'
 
 
 async def first_response(update, context):
     context.user_data['locality'] = context.user_data['locality'] + [update.message.text]
     s = context.user_data['locality']
-    try:
-        cords2 = await search(context.user_data['locality'][2])
-    except Exception as error:
-        logging.exception(error)
-        cords2 = '123'
-    await update.message.reply_text(f'Вы угадали город - {s[0]}\nоцените игру от 1 до 5' if cords2 == s[
-        1] else f'Вы не угадали город {s[0]}, выбрав - {s[2]}\nоцените игру от 1 до 5')
+    await update.message.reply_text(f'Вы угадали город - {s[0][0]}\nоцените игру от 1 до 5' if s[1] in s[
+        0] else f'Вы не угадали город {s[0][0]}, выбрав - {s[1]}\nоцените игру от 1 до 5')
     context.user_data['isgame'] = 'wait number'
 
 
@@ -106,66 +80,74 @@ async def check_command(update, context):
             await first_response(update, context)
         elif context.user_data['isgame'] == 'wait number':
             await second_response(update, context)
-    elif update.message.text == '🎮 play 🎮':
+    elif update.message.text == '🎮 играть 🎮':
         await play(update, context)
-    elif update.message.text == '📊 statistics 📊':
+    elif update.message.text == '📊 статистика 📊':
         await stat(update, context)
-    elif update.message.text == '📖 faq 📖':
-        await helpp(update, context)
-    elif update.message.text == '🚪 exit 🚪':
+    elif update.message.text == '📖 информация 📖':
+        await info(update, context)
+    elif update.message.text == '🚪 выход 🚪':
         await close_keyboard(update, context)
-    elif update.message.text == '⚙️ settings ⚙️':
-        await first_key_buttons(update, context)
+    elif update.message.text == '⚙️ настройки ⚙️':
+        await settings(update, context)
 
 
 async def button(update, context):
     query = update.callback_query
-
     await query.answer()
-
     answer = str(query.data)
 
-    if answer == "стата":
-        await query.edit_message_text(text="vot tebe stata")
-    elif answer == "далее":
-        await second_key_buttons(update, context, 2)
+    if answer == "сложность":
+        await second_settings(update, context, "сложность")
+    elif answer == "профиль":
+        await query.edit_message_text(text="В разработке")
+    elif answer == "закрыть":
+        await query.edit_message_text(text="Настройки закрыты")
+    elif answer in ["лёгкая", "средняя", "сложная", "смешанная"]:
+        await query.edit_message_text(text=f"Ваша сложность изменена на {answer}")
     elif answer == 'назад':
-        await second_key_buttons(update, context, 1)
+        await second_settings(update, context, 'назад')
     return context
 
 
-async def first_key_buttons(update, context):
+async def settings(update, context):
     keyboard = [
         [
-            InlineKeyboardButton("стата", callback_data='стата'),
-            InlineKeyboardButton("далее", callback_data='далее'),
+            InlineKeyboardButton("сложность", callback_data='сложность'),
+            InlineKeyboardButton("профиль", callback_data='профиль'),
+            InlineKeyboardButton("закрыть", callback_data='закрыть')
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("1", reply_markup=reply_markup)
+    await update.message.reply_text("⚙️               Настройки               ⚙️", reply_markup=reply_markup)
     return context
 
 
-async def second_key_buttons(update, context, count):
+async def second_settings(update, context, count):
     query = update.callback_query
-    if count == 1:
+    if count == "сложность":
         keyboard = [
             [
-                InlineKeyboardButton("стата", callback_data='стата'),
-                InlineKeyboardButton("далее", callback_data='далее'),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text="1s", reply_markup=reply_markup)
-    elif count == 2:
-        keyboard = [
+                InlineKeyboardButton("легкая", callback_data='лёгкая'),
+                InlineKeyboardButton("средняя", callback_data='средняя'),
+                InlineKeyboardButton("сложная", callback_data='сложная')],
             [
-                InlineKeyboardButton("помощь", callback_data="помощь"),
+                InlineKeyboardButton("смешанная", callback_data='смешанная'),
                 InlineKeyboardButton("назад", callback_data='назад'),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text="2", reply_markup=reply_markup)
+        await query.edit_message_text(text="⚙️ Выберите сложность ⚙️", reply_markup=reply_markup)
+    elif count == "назад":
+        keyboard = [
+            [
+                InlineKeyboardButton("сложность", callback_data='сложность'),
+                InlineKeyboardButton("профиль", callback_data='профиль'),
+                InlineKeyboardButton("закрыть", callback_data='закрыть')
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("⚙️               Настройки               ⚙️", reply_markup=reply_markup)
     return context
 
 
