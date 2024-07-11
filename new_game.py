@@ -10,12 +10,13 @@ from telegram import ReplyKeyboardRemove
 import random
 import logging
 
+# DATA = {user_id: [hard, points]}
 DATA = {}
 with open('data.txt', encoding='utf-8') as DATA_READ:
     DATA_READ = DATA_READ.readlines()
     for el in DATA_READ:
         el = el.split('/')
-        DATA[el[0]] = el[1][:-1]
+        DATA[el[0]] = [el[1], el[2][:-1]]
 
 RUWORDS = {'easy': 'лёгкая', 'medium': 'средняя', 'hard': 'сложная', 'multy': 'смешанная'}
 ENWORDS = {'лёгкая': 'easy', 'средняя': 'medium', 'сложная': 'hard', 'смешанная': 'multy'}
@@ -47,20 +48,12 @@ async def start(update, context):
 
 
 async def edit_data(update, context, command):
-    global DATA, DATA_READ
+    global DATA
     if command == 'new':
-        DATA_READ = DATA_READ + [f'{update.message.chat.id}/easy\n']
-        with open('data.txt', 'w') as data:
-            for elem in DATA_READ:
-                data.write(elem)
-        DATA[str(update.message.chat.id)] = 'easy'
+        DATA[str(update.message.chat.id)] = ['easy', '0']
     elif command in ["лёгкая", "средняя", "сложная", "смешанная"]:
-        DATA[str(update.callback_query.from_user.id)] = ENWORDS[command]
-        with open('data.txt', 'w') as data:
-            for elem in DATA:
-                data.write(f'{elem}/{DATA[elem]}\n')
-        with open('data.txt', encoding='utf-8') as DATA_READ:
-            DATA_READ = DATA_READ.readlines()
+        user_id = str(update.callback_query.from_user.id)
+        DATA[user_id] = [ENWORDS[command], DATA[user_id][1]]
     return context
 
 
@@ -77,14 +70,14 @@ async def info(update, context):
 
 
 async def stat(update, context):
-    await update.message.reply_text("В разработке.")
+    await update.message.reply_text(f"У вас {DATA[str(update.message.chat.id)][1]} верных ответов!")
     return context
 
 
 async def play(update, context):
     town = random.choice(TOWNS)
     photo = random.choice(PHOTOS[town])
-    await update.message.reply_text(f'Ваша сложность - {RUWORDS[DATA[str(update.message.chat.id)]]}')
+    await update.message.reply_text(f'Ваша сложность - {RUWORDS[DATA[str(update.message.chat.id)][0]]}')
     await update.message.reply_text("Здравствуйте. Угадайте город по фото:")
     await update.message.reply_photo(rf'Russia cities\{town}\{photo}')
     await update.message.reply_text("Введите название города:")
@@ -136,8 +129,8 @@ async def button(update, context):
     elif answer == "закрыть":
         await query.edit_message_text(text="Настройки закрыты")
     elif answer in ["лёгкая", "средняя", "сложная", "смешанная"]:
-        await query.edit_message_text(text=f"Ваша сложность изменена на {answer}")
         await edit_data(update, context, answer)
+        await query.edit_message_text(text=f"Ваша сложность изменена на {answer}")
     elif answer == 'назад':
         await second_settings(update, context, 'назад')
     return context
@@ -198,3 +191,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+with open('data.txt', 'w') as data:
+    for elem in [f'{el}/{DATA[el][0]}/{DATA[el][1]}\n' for el in DATA]:
+        data.write(elem)
+    print('success exit')
