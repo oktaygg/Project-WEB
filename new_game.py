@@ -81,22 +81,28 @@ async def play(update, context):
     await update.message.reply_text("Здравствуйте. Угадайте город по фото:")
     await update.message.reply_photo(rf'Russia cities\{town}\{photo}')
     await update.message.reply_text("Введите название города:")
-    context.user_data['locality'] = [NAME_TOWNS[town]]
+    context.user_data['true_answer'] = NAME_TOWNS[town]
     context.user_data['isgame'] = 'wait town'
 
 
 async def first_response(update, context):
-    context.user_data['locality'] = context.user_data['locality'] + [update.message.text]
-    s = context.user_data['locality']
-    await update.message.reply_text(f'Вы угадали город - {s[0][0]}\nоцените игру от 1 до 5' if s[1] in s[
-        0] else f'Вы не угадали город {s[0][0]}, выбрав - {s[1]}\nоцените игру от 1 до 5')
+    global DATA
+    true_answer = context.user_data['true_answer']
+    user_answer = update.message.text
+    if user_answer in true_answer:
+        user_id = str(update.message.chat.id)
+        DATA[user_id] = [DATA[user_id][0], str(int(DATA[user_id][1]) + 1)]
+        await update.message.reply_text(f'Вы угадали город - {true_answer[0]}')
+    else:
+        await update.message.reply_text(f'Вы не угадали город {true_answer[0]}, выбрав - {user_answer}')
+    await update.message.reply_text('Оцените игру от 1 до 5')
     context.user_data['isgame'] = 'wait number'
 
 
 async def second_response(update, context):
     await update.message.reply_text(f"Спасибо за участие! Статистика в разработке!")
     del context.user_data['isgame']
-    del context.user_data['locality']
+    del context.user_data['true_answer']
 
 
 async def check_command(update, context):
