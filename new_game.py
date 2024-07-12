@@ -65,7 +65,12 @@ async def close_keyboard(update, context):
 
 
 async def info(update, context):
-    await update.message.reply_text("Я бот, команда в разработке.")
+    await update.message.reply_text("Информация о боте:\n"
+                                    "🎮 играть 🎮 - активирует игру, в которой вам нужно ввести название города,"
+                                    " изображённого на картинке, затем оценить игру от 1 до 5.\n"
+                                    "⚙️ настройки ⚙️ - выбрать сложность или настройить профиль.\n"
+                                    "📊 статистика 📊 - отоброжает вашу статистику.\n"
+                                    "📖 информация 📖 - отоброжает информацию о боте.")
     return context
 
 
@@ -100,7 +105,7 @@ async def first_response(update, context):
 
 
 async def second_response(update, context):
-    await update.message.reply_text(f"Спасибо за участие! Статистика в разработке!")
+    await update.message.reply_text(f"Спасибо за участие!")
     del context.user_data['isgame']
     del context.user_data['true_answer']
 
@@ -131,7 +136,7 @@ async def button(update, context):
     if answer == "сложность":
         await second_settings(update, context, "сложность")
     elif answer == "профиль":
-        await query.edit_message_text(text="В разработке")
+        await query.edit_message_text(text=f"Ваш id: {update.callback_query.from_user.id}")
     elif answer == "закрыть":
         await query.edit_message_text(text="Настройки закрыты")
     elif answer in ["лёгкая", "средняя", "сложная", "смешанная"]:
