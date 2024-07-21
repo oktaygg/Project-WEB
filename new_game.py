@@ -21,14 +21,22 @@ with open('data.txt', encoding='utf-8') as DATA_READ:
 RUWORDS = {'easy': 'лёгкая', 'medium': 'средняя', 'hard': 'сложная', 'multy': 'смешанная'}
 ENWORDS = {'лёгкая': 'easy', 'средняя': 'medium', 'сложная': 'hard', 'смешанная': 'multy'}
 
-TOWNS = ['Moscow', 'Saint Peterburg', 'Kazan']
+TOWNS = {'easy': ['Moscow', 'Saint Peterburg', 'Sochi'], 'medium': ['Kazan', 'Ekaterenburg'], 'hard': ['Arhangelsk']}
 
-PHOTOS = {'Moscow': ['Moscow_1.jpg'], 'Saint Peterburg': ['Saint_peterburg_1.jpg'], 'Kazan': ['Kazan_1.jpg']}
+PHOTOS = {'Moscow': ['Moscow_1.jpg', 'Moscow_2.jpg', 'Moscow_3.jpg', 'Moscow_4.jpg', 'Moscow_5.jpg'],
+          'Saint Peterburg': ['Piter_1.jpg', 'Piter_2.jpg', 'Piter_3.jpg', 'Piter_4.jpg', 'Piter_5.jpg'],
+          'Sochi': ['Sochi_1.jpg', 'Sochi_2.jpg', 'Sochi_3.jpg', 'Sochi_4.jpg', 'Sochi_5.jpg'],
+          'Kazan': ['Kazan_1.jpg', 'Kazan_2.jpg', 'Kazan_3.jpg'],
+          'Ekaterenburg': ['Ekb_1.jpg', 'Ekb_2.jpg', 'Ekb_3.jpg'],
+          'Arhangelsk': ['Arhangelsk_1.jpg', 'Arhangelsk_2.jpg']}
 
 NAME_TOWNS = {'Moscow': ["Москва", 'москва'],
               'Saint Peterburg': ['Санкт-Петербург', "спб", "Спб", "СПБ", "питер", "Питер", "санкт петербург",
                                   "Санкт петербург", "Санкт Петербург", "санкт-петербург", "Санкт-петербург"],
-              'Kazan': ["Казань", "казань"]}
+              'Sochi': ['Сочи', 'сочи'],
+              'Kazan': ["Казань", "казань"],
+              'Ekaterenburg': ["Екатеринбург", "екатеринбург", "Екб", "ЕКБ", "екб"],
+              'Arhangelsk': ['Архангельск', 'архангельск']}
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
@@ -80,7 +88,10 @@ async def stat(update, context):
 
 
 async def play(update, context):
-    town = random.choice(TOWNS)
+    hard = DATA[str(update.message.chat.id)][0]
+    if hard == 'multy':
+        hard = random.choice(['easy', 'medium', 'hard'])
+    town = random.choice(TOWNS[hard])
     photo = random.choice(PHOTOS[town])
     await update.message.reply_text(f'Ваша сложность - {RUWORDS[DATA[str(update.message.chat.id)][0]]}')
     await update.message.reply_text("Здравствуйте. Угадайте город по фото:")
